@@ -399,6 +399,13 @@ function clearOldShortcutKey() {
   localStorage["key_popup"] = null
 }
 
+/**
+ * make sure the tab is usable for search etc (see PR #314 and related issues #251, #310, #275, #313).
+ */
+function validTab(tab) {
+  return tab && tab.title;
+}
+
 function includeTab(tab) {
   return !(!showDevTools() && /chrome-devtools:\/\//.exec(tab.url)) && !(!showPinnedTabs() && tab.pinned);
 }
@@ -481,7 +488,7 @@ function initBadgeIcon() {
  */
 function updateBadgeText() {
   if (showTabCount()) {
-    var val = tabs.filter(includeTab).length;
+    var val = tabs.filter(tab => validTab(tab) && includeTab(tab)).length;
 
     chrome.browserAction.setBadgeText({text: val + ""});
   } else {
@@ -509,10 +516,9 @@ function updateTabOrder(tabId) {
     tabOrderUpdateFunction.cancel();
   }
 
-  var idx = indexOfTab(tabId);
-
   // setup a new timer
   tabOrderUpdateFunction = new DelayedFunction(function() { // @TODO instead of DelayedFunction use setTimeout(fx, time)
+    var idx = indexOfTab(tabId);
     if (idx >= 0) { // if tab exists in tabs[]
       //log('updating tab order for', tabId, 'index', idx);
       var tab = tabs[idx];

@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
   <link rel="stylesheet" href="assets/styles.css" type="text/css" media="all"/>
   <link rel="stylesheet" href="assets/styles-options.css" type="text/css" media="all"/>
-  <script type="text/javascript" src="js/jquery-3.2.1.min.js"></script>
+  <script type="text/javascript" src="js/jquery-3.5.1.min.js"></script>
   <script type="text/javascript" src="options.js"></script>
   <title>Quick Tabs Options</title>
 </head>
@@ -142,6 +142,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             <input type='radio' name='search_type' value="substring"/>
             Perform Substring Search (exact string matching search)
           </label>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding: 10px 10px 10px 16px">
+          The different search type may also be specified during a query by passing <code>/fuzzy</code>, <code>/fuse</code>, <code>/regex</code> or
+          <code>/subs</code> as a prefix to the query. For example, <code>/regex twitter|youtube</code> will use regex to list all tabs that have
+          'twitter' or 'youtube' in their URLs or title.
         </td>
       </tr>
       <tr>

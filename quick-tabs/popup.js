@@ -154,7 +154,7 @@ function scrollToFocus() {
   const element = entryWithFocus();
 
   // make sure we have an element to scroll to
-  if(element.length > 0) {
+  if (element.length > 0) {
     const offset = element.offset().top;
     const elementHeight = element.outerHeight(true) * 2;
 
@@ -372,12 +372,12 @@ $(document).ready(function() {
   $('#searchbox').on({
     'keyup': function() {
       let str = $("#searchbox").val();
-          debouncedSearch(str, function(results) {
-            renderTabs(results);
-            // store the current search string
-            bg.setLastSearchedStr(str)
-          })
-     }
+      debouncedSearch(str, function(results) {
+        renderTabs(results);
+        // store the current search string
+        bg.setLastSearchedStr(str)
+      })
+    }
   });
 
   /**
@@ -435,11 +435,11 @@ function drawCurrentTabs() {
     bg.tabs = compareTabArrays(bg.tabs, queryResultTabs);
 
     // find the current tab so that it can be excluded on the initial tab list rendering
-    chrome.tabs.query({currentWindow:true, active:true}, function(tab) {
+    chrome.tabs.query({currentWindow: true, active: true}, function(tab) {
       var tabs = bg.tabs;
 
-      if(bg.orderTabsInWindowOrder()) {
-        tabs = tabs.slice().sort(function(a,b) {
+      if (bg.orderTabsInWindowOrder()) {
+        tabs = tabs.slice().sort(function(a, b) {
           // we want to list the current window's tabs first
           // if either compared tab is part of the current window, order it first
           if(a.windowId === tab[0].windowId && b.windowId !== tab[0].windowId) return -1;
@@ -634,6 +634,10 @@ function endsWith(str, end) {
   return str.indexOf(end, str.length - end.length) !== -1;
 }
 
+function startsOrEndsWith(str, checkStr) {
+  return startsWith(str, checkStr) || endsWith(str, checkStr)
+}
+
 
 /**
  *
@@ -755,13 +759,17 @@ AbstractSearch.prototype.shouldSearch = function(query) {
 /**
  * Retrieve the search string from the search box and search the different tab groups following these rules:
  *
- * - if the search string ends with 3 spaces ('   ') search the entire browser history
- * - if the search string ends with 2 spaces ('  ') only search bookmarks
- * - if the search string ends with 1 space (' ') search tabs and bookmarks
+ * - if the search string starts/ends with 3 spaces ('   ') search the entire browser history
+ * - if the search string starts/ends with 2 spaces ('  ') only search bookmarks
+ * - if the search string starts/ends with 1 space (' ') search tabs and bookmarks
  * - otherwise search tabs unless there are less than 5 results in which case include bookmarks
  *
  */
 AbstractSearch.prototype.executeSearch = function(query, searchBookmark, searchHistory) {
+  const searchHistoryStr = "   ";
+  const searchBookmarkStr = "  ";
+  const searchTabsBookmarksStr = " ";
+  const audibleQuery = "<))";
 
   pageTimer.reset();
 
@@ -772,21 +780,21 @@ AbstractSearch.prototype.executeSearch = function(query, searchBookmark, searchH
 
   if (query.trim().length === 0) {
     // no need to search if the string is empty
-    filteredTabs = bg.tabs;
+    filteredTabs = bg.tabs.filter(bg.validTab);
     filteredClosed = bg.closedTabs;
-  } else if (query === "<))") {
-    filteredTabs = bg.tabs.filter(filterAudible)
-  } else if (searchHistory || endsWith(query, "   ")) {
+  } else if (query === audibleQuery) {
+    filteredTabs = bg.tabs.filter(tab => bg.validTab(tab) && filterAudible(tab))
+  } else if (searchHistory || startsOrEndsWith(query, searchHistoryStr)) {
     // i hate to break out of a function part way though but...
     this.searchHistory(query, 0);
     return null;
-  } else if (searchBookmark || endsWith(query, "  ")) {
+  } else if (searchBookmark || startsOrEndsWith(query, searchBookmarkStr)) {
     filteredBookmarks = this.searchTabArray(query, bg.bookmarks);
   } else {
-    filteredTabs = this.searchTabArray(query, bg.tabs);
+    filteredTabs = this.searchTabArray(query, bg.tabs.filter(bg.validTab));
     filteredClosed = this.searchTabArray(query, bg.closedTabs);
     var resultCount = filteredTabs.length + filteredClosed.length;
-    if (endsWith(query, " ") || resultCount < MIN_TAB_ONLY_RESULTS) {
+    if (startsOrEndsWith(query, searchTabsBookmarksStr) || resultCount < MIN_TAB_ONLY_RESULTS) {
       filteredBookmarks = this.searchTabArray(query, bg.bookmarks);
     }
   }
@@ -1181,6 +1189,29 @@ WindowSearchCmd.prototype.run = function(query, onComplete) {
 
 
 /**
+ * Current pinned tabs only search
+ * =============================================================================================================================================================
+ */
+
+function PinnedTabSearchCmd() {
+}
+
+PinnedTabSearchCmd.prototype = Object.create(AbstractCommand.prototype);
+
+PinnedTabSearchCmd.prototype.run = function(query, onComplete) {
+  let searchResults = search.executeSearch(query, false, false) || {};
+  let tabs = searchResults.allTabs || bg.tabs;
+
+  searchResults.allTabs = tabs.filter(function(t) {
+    return t.pinned;
+  });
+
+  // return the search result
+  onComplete(searchResults);
+};
+
+
+/**
  * Fuzzy search
  * =============================================================================================================================================================
  */
@@ -1389,7 +1420,6 @@ SplitTabsCmd.prototype.run = function(query, onComplete) {
           }
         }
       }];
-      log("[2]");
 
       // return the search result
       onComplete(searchResults);
@@ -1532,6 +1562,7 @@ let commands = {
   "/b": new BookmarkSearchCmd(),
   "/h": new HistorySearchCmd(),
   "/w": new WindowSearchCmd(),
+  "/p": new PinnedTabSearchCmd(),
 
   "/fuzzy": new FuzzySearchCmd(),
   "/fuse": new FuseSearchCmd(),
